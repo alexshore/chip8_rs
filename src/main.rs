@@ -91,29 +91,29 @@ impl Display {
     fn update(&mut self, pixels: &[PixelState]) {
         for y in 0..HEIGHT {
             for x in 0..WIDTH {
-                self.update_image_rect(x, y, pixels[(y * WIDTH + x) as usize])
+                self.update_pixel_rect(x, y, pixels[(y * WIDTH + x) as usize])
             }
         }
         self.texture.update(&self.image);
     }
 
-    fn update_image_rect(&mut self, x: u32, y: u32, state: PixelState) {
+    fn update_pixel_rect(&mut self, x: u32, y: u32, state: PixelState) {
         let start_x = x * PIXEL_SIZE;
         let start_y = y * PIXEL_SIZE;
 
-        for x_offset in start_x..start_x + PIXEL_SIZE {
-            if start_x + x_offset >= WIDTH * PIXEL_SIZE {
+        for cur_x in start_x..start_x + PIXEL_SIZE {
+            if cur_x >= WIDTH * PIXEL_SIZE {
                 continue;
             }
 
-            for y_offset in start_y..start_y + PIXEL_SIZE {
-                if start_y + y_offset >= HEIGHT * PIXEL_SIZE {
+            for cur_y in start_y..start_y + PIXEL_SIZE {
+                if cur_y >= HEIGHT * PIXEL_SIZE {
                     continue;
                 }
 
                 self.image.set_pixel(
-                    start_x + x_offset,
-                    start_y + y_offset,
+                    cur_x,
+                    cur_y,
                     match state {
                         PixelState::Off => BLACK,
                         PixelState::On => WHITE,
@@ -171,12 +171,11 @@ impl Chip8 {
             self.execute(instruction);
 
             if self.update_display {
-                self.pixels[0] = PixelState::On;
-                self.pixels[1] = PixelState::On;
                 self.display.update(&self.pixels);
                 self.update_display = false
             }
 
+            // we redraw the texture every frame cause otherwise it'll disappear
             draw_texture(&self.display.texture, 0., 0., GRAY);
             next_frame().await
         }
