@@ -11,10 +11,17 @@ const SCREEN_WIDTH: u32 = 64;
 const SCREEN_HEIGHT: u32 = 32;
 const PIXEL_SIZE: u32 = 10;
 
+#[derive(PartialEq, Eq)]
+enum EmuState {
+    Play,
+    Pause,
+    Exit,
+}
+
 #[derive(Parser)]
 #[command(version, about)]
 struct Args {
-    /// Optional ROM file
+    /// ROM file
     filename: PathBuf,
 }
 
@@ -30,5 +37,21 @@ fn main() {
     let mut cpu = Cpu::new();
     cpu.load_rom(&args.filename);
 
-    'mainloop: loop {}
+    let mut keys = [false; 16];
+
+    'mainloop: loop {
+        if input_driver.get_inputs(&mut keys) == EmuState::Exit {
+            break 'mainloop;
+        }
+
+        if keys.iter().any(|&key| key) {
+            println!("{:?}", keys);
+        }
+
+        cpu.tick(&keys);
+
+        if cpu.update_display {
+            display_driver.draw(&cpu.pixels)
+        }
+    }
 }

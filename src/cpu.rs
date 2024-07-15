@@ -1,11 +1,9 @@
 #![allow(dead_code)]
 
 use rand::{rngs::ThreadRng, Rng};
-use std::{
-    fs::{metadata, File},
-    io::Read,
-    path::PathBuf,
-};
+use std::fs::{metadata, File};
+use std::io::Read;
+use std::path::PathBuf;
 
 use byteorder::{BigEndian, ByteOrder};
 
@@ -56,14 +54,16 @@ impl Instruction {
 }
 
 pub struct Cpu {
-    pixels: Vec<bool>,
+    pub pixels: Vec<bool>,
     memory: Vec<u8>,
     stack: Vec<usize>,
     v: Vec<u8>,
     i: u16,
     pc: usize,
+    delay_timer: u8,
+    sound_timer: u8,
     rng: ThreadRng,
-    update_display: bool,
+    pub update_display: bool,
 }
 
 impl Cpu {
@@ -72,9 +72,11 @@ impl Cpu {
             pixels: vec![false; (SCREEN_HEIGHT * SCREEN_WIDTH) as usize],
             memory: vec![0; 4096],
             stack: vec![],
-            v: vec![0, 16],
+            v: vec![0; 16],
             i: 0,
             pc: 0x200,
+            delay_timer: 0,
+            sound_timer: 0,
             rng: rand::thread_rng(),
             update_display: false,
         };
@@ -114,8 +116,7 @@ impl Cpu {
                 // return from subroutine
                 0xEE => self.pc = self.stack.pop().unwrap(),
 
-                // default
-                _ => (),
+                _ => unimplemented!(),
             },
 
             // jump to nnn
@@ -134,7 +135,11 @@ impl Cpu {
             0x4 if self.v[ins.x] != ins.nn => self.pc += 2,
 
             // pc += 2 if Vx == Vy
-            0x5 if self.v[ins.x] == self.v[ins.y] => self.pc += 2,
+            0x5 if ins.n == 0 => {
+                if self.v[ins.x] == self.v[ins.y] {
+                    self.pc += 2
+                }
+            }
 
             // Vx = nn
             0x6 => self.v[ins.x] = ins.nn,
@@ -170,12 +175,17 @@ impl Cpu {
 
                 0x5..=0x7 => todo!(),
 
-                // default
-                _ => (),
+                0xE => todo!(),
+
+                _ => unimplemented!(),
             },
 
             // pc += 2 if Vx != Vy
-            0x9 if self.v[ins.x] != self.v[ins.y] => self.pc += 2,
+            0x9 if ins.n == 0 => {
+                if self.v[ins.x] != self.v[ins.y] {
+                    self.pc += 2
+                }
+            }
 
             // I = nnn
             0xA => self.i = ins.nnn,
@@ -192,12 +202,61 @@ impl Cpu {
                 self.update_display = true;
             }
 
-            0xE => todo!(), // keypress things
+            // keypress things :3
+            0xE => match ins.nn {
+                0x9E => {
+                    if keys[self.v[ins.x] as usize] {
+                        self.pc += 2
+                    }
+                }
+                0xA1 => {
+                    if !keys[self.v[ins.x] as usize] {
+                        self.pc += 2
+                    }
+                }
+                _ => unimplemented!(),
+            },
 
-            0xF => todo!(), // lots of random shit
+            0xF => match ins.nn {
+                0x07 => self.v[ins.x] = self.delay_timer,
+                0x0A => {
+                    // PAUSE until any keypressed then store in Vx
+                    if !keys.iter().any(|&key| key) {
+                        self.pc -= 2
+                    } else {
+                        for (i, key) in keys.iter().enumerate() {
+                            if *key {
+                                self.v[ins.x] = i as u8
+                            }
+                        }
+                    }
+                }
+                0x15 => self.delay_timer = self.v[ins.x],
+                0x18 => self.sound_timer = self.v[ins.x],
+                0x1E => self.i += self.v[ins.x] as u16,
+                0x29 => self.i = (0x50 + (self.v[ins.x] * 5)) as u16,
+                0x33 => {
+                    // store BCD in memory[i..i + 2]
+                    self.memory[self.i as usize] = self.v[ins.x] / 100;
+                    self.memory[self.i as usize + 1] = self.v[ins.x] % 100 / 10;
+                    self.memory[self.i as usize + 2] = self.v[ins.x] % 10
+                }
+                0x55 => {
+                    // store V0..Vx in memory[i..i + x]
+                    for reg in 0..ins.x {
+                        self.memory[self.i as usize + reg] = self.v[reg]
+                    }
+                }
+                0x65 => {
+                    // read V0..Vx from memory[i..i + x]
+                    for reg in 0..ins.x {
+                        self.v[reg] = self.memory[self.i as usize + reg]
+                    }
+                }
+                _ => unimplemented!(),
+            },
 
-            // default, do nothing
-            _ => (),
+            _ => unimplemented!(),
         }
     }
 
