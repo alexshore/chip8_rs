@@ -63,7 +63,6 @@ pub struct Cpu {
     delay_timer: u8,
     sound_timer: u8,
     rng: ThreadRng,
-    pub update_display: bool,
 }
 
 impl Cpu {
@@ -78,7 +77,6 @@ impl Cpu {
             delay_timer: 0,
             sound_timer: 0,
             rng: rand::thread_rng(),
-            update_display: false,
         };
         res.memory[0x50..0x50 + FONT.len()].copy_from_slice(&FONT[..]);
         res
@@ -115,7 +113,6 @@ impl Cpu {
                 // Clear pixels
                 0xE0 => {
                     self.clear_pixels();
-                    self.update_display = true
                 }
 
                 // Return
@@ -221,7 +218,6 @@ impl Cpu {
             // Draw Sprite from I at (Vx, Vy)
             0xD => {
                 self.draw_sprite(ins);
-                self.update_display = true;
             }
 
             // keypress things :3
