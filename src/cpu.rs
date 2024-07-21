@@ -61,7 +61,7 @@ pub struct Cpu {
     i: u16,
     pc: usize,
     delay_timer: u8,
-    sound_timer: u8,
+    pub sound_timer: u8,
     rng: ThreadRng,
 }
 
@@ -97,8 +97,8 @@ impl Cpu {
     }
 
     pub fn decrement_timers(&mut self) {
-        self.sound_timer -= 1;
-        self.delay_timer -= 1;
+        self.sound_timer = self.sound_timer.saturating_sub(1);
+        self.delay_timer = self.delay_timer.saturating_sub(1);
     }
 
     fn decode(&self) -> Instruction {
@@ -131,10 +131,18 @@ impl Cpu {
             }
 
             // PC = PC + 2 IF Vx == nn
-            0x3 if self.v[ins.x] == ins.nn => self.pc += 2,
+            0x3 => {
+                if self.v[ins.x] == ins.nn {
+                    self.pc += 2
+                }
+            }
 
             // PC = PC + 2 IF Vx != nn
-            0x4 if self.v[ins.x] != ins.nn => self.pc += 2,
+            0x4 => {
+                if self.v[ins.x] != ins.nn {
+                    self.pc += 2
+                }
+            }
 
             // PC = PC + 2 IF Vx == Vy
             0x5 if ins.n == 0 => {
@@ -264,7 +272,7 @@ impl Cpu {
                 0x1E => self.i += self.v[ins.x] as u16,
 
                 // I = font[Vx] memory location
-                0x29 => self.i = (0x50 + (self.v[ins.x] * 5)) as u16,
+                0x29 => self.i = 0x50 + (self.v[ins.x] * 5) as u16,
 
                 // memory[i..i + 2] = Vx BCD
                 0x33 => {
@@ -312,8 +320,14 @@ impl Cpu {
                 // match current bit in byte
                 let sprite_bit = !matches!(sprite_byte & (0x80 >> col), 0);
 
-                let screen_pixel = &mut self.pixels
-                    [((start_y + row) as u32 * SCREEN_WIDTH + (start_x + col) as u32) as usize];
+                let cur_row = (start_y + row) as u32;
+                let cur_col = (start_x + col) as u32;
+
+                if cur_row >= SCREEN_HEIGHT || cur_col >= SCREEN_WIDTH {
+                    continue;
+                }
+
+                let screen_pixel = &mut self.pixels[(cur_row * SCREEN_WIDTH + cur_col) as usize];
 
                 // if pixel is on in the sprite
                 if sprite_bit {

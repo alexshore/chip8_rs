@@ -24,8 +24,7 @@ enum State {
 enum Execute {
     Cpu,
     Display,
-    Sound,
-    Delay,
+    SoundDelay,
 }
 
 #[derive(Parser)]
@@ -52,8 +51,7 @@ fn main() {
     let mut timers: Vec<Timer> = vec![
         Timer::new(1000, Execute::Cpu),
         Timer::new(60, Execute::Display),
-        Timer::new(60, Execute::Sound),
-        Timer::new(60, Execute::Delay),
+        Timer::new(60, Execute::SoundDelay),
     ];
 
     'mainloop: loop {
@@ -70,5 +68,14 @@ fn main() {
         if execute.contains(&Execute::Display) {
             display_driver.draw(&cpu.pixels)
         }
+
+        if execute.contains(&Execute::SoundDelay) {
+            cpu.decrement_timers()
+        }
+
+        // todo: ACTUAL AUDIO !!!!
+        // if cpu.sound_timer == 0 {
+        //     println!("BEEP")
+        // }
     }
 }

@@ -6,9 +6,9 @@ Yet another CHIP-8 emulator written in Rust. I primarily wrote this to learn abo
 
 - Rust 1.79+ (only tested on this version but most likely very backward compatible)
 - SDL2
-    - if on Linux you can install with your package manager i.e. `sudo apt install sdl2`
-    - if on Mac OS you can install with `brew install sdl2`
-    - if running on Windows then `SDL2.dll` needs to be in the root directory of the project
+  - if on Linux you can install with your package manager i.e. `sudo apt install sdl2`
+  - if on Mac OS you can install with `brew install sdl2`
+  - if running on Windows then `SDL2.dll` needs to be in the root directory of the project
 
 ## Restrictions
 
@@ -25,8 +25,7 @@ Yet another CHIP-8 emulator written in Rust. I primarily wrote this to learn abo
 ## TODO
 
 - Configurable CPU speed.
-    - via argument
-    - via keypress
+  - via argument
+  - via keypress
 - Reset button.
 - Sound.
-- Timers/Mainloop.

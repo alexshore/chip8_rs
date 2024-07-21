@@ -1,35 +1,33 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::Execute;
 
 #[derive(Clone, Copy)]
 pub struct Timer {
-    freq: u32,
+    freq: u128,
     exec: Execute,
     last: Instant,
 }
 
 impl Timer {
-    pub fn new(freq: u32, exec: Execute) -> Timer {
+    pub fn new(hz: u32, exec: Execute) -> Timer {
         Timer {
-            freq,
+            freq: 1_000_000 / hz as u128,
             exec,
             last: Instant::now(),
         }
     }
 
     fn try_tick(&mut self) -> bool {
-        true
+        if self.last.elapsed().as_micros() >= self.freq {
+            self.last = Instant::now();
+            true
+        } else {
+            false
+        }
     }
 }
 
-/* TODO
-   1. take in list of timers
-   2. select next timer in list
-   3. if current time is greater than timers last tick time + (1 / freq) then add relevant Execute to `res` vec (create method on Timer struct)
-   4. repeat steps 2-3 until end of list
-   5. return list
-*/
 pub fn check_timers(timers: &mut [Timer]) -> Vec<Execute> {
     let mut res = vec![];
     for timer in timers {
