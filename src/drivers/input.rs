@@ -3,7 +3,7 @@ use sdl2::keyboard::{KeyboardState, Keycode, Scancode};
 use sdl2::EventPump;
 use sdl2::Sdl;
 
-use crate::State;
+use crate::Event;
 
 const SCANCODES: [Scancode; 16] = [
     Scancode::Num1,
@@ -35,7 +35,7 @@ impl InputDriver {
         }
     }
 
-    pub fn get_inputs(&mut self, keys: &mut [bool; 16]) -> State {
+    pub fn get_inputs(&mut self, keys: &mut [bool; 16]) -> Option<Event> {
         let keyboardstate = KeyboardState::new(&self.event_pump);
         for (i, key) in SCANCODES.iter().enumerate() {
             keys[i] = keyboardstate.is_scancode_pressed(*key)
@@ -44,16 +44,20 @@ impl InputDriver {
         for event in self.event_pump.poll_iter() {
             match event {
                 KeyDown {
+                    keycode: Some(Keycode::SPACE),
+                    ..
+                } => return Some(Event::Toggle),
+                KeyDown {
                     keycode: Some(Keycode::ESCAPE),
                     ..
-                } => return State::Exit,
+                } => return Some(Event::Exit),
                 KeyDown {
                     keycode: Some(Keycode::BACKSPACE),
                     ..
-                } => return State::Pause,
+                } => return Some(Event::Reset),
                 _ => (),
             }
         }
-        State::Play
+        None
     }
 }

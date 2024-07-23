@@ -1,16 +1,16 @@
 use std::time::{Duration, Instant};
 
-use crate::Execute;
+use crate::DoTick;
 
 #[derive(Clone, Copy)]
 pub struct Timer {
     freq: u128,
-    exec: Execute,
+    exec: DoTick,
     last: Instant,
 }
 
 impl Timer {
-    pub fn new(hz: u32, exec: Execute) -> Timer {
+    pub fn new(hz: u32, exec: DoTick) -> Timer {
         Timer {
             freq: 1_000_000 / hz as u128,
             exec,
@@ -28,7 +28,7 @@ impl Timer {
     }
 }
 
-pub fn check_timers(timers: &mut [Timer]) -> Vec<Execute> {
+pub fn check_timers(timers: &mut [Timer]) -> Vec<DoTick> {
     let mut res = vec![];
     for timer in timers {
         if timer.try_tick() {

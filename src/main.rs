@@ -3,10 +3,10 @@
 mod cpu;
 mod drivers;
 
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Instant};
 
 use clap::Parser;
-use cpu::Cpu;
+use cpu::{Cpu, State};
 use drivers::{check_timers, AudioDriver, DisplayDriver, InputDriver, Timer};
 
 const SCREEN_WIDTH: u32 = 64;
@@ -14,14 +14,14 @@ const SCREEN_HEIGHT: u32 = 32;
 const PIXEL_SIZE: u32 = 10;
 
 #[derive(PartialEq, Eq)]
-enum State {
-    Play,
-    Pause,
+enum Event {
+    Toggle,
+    Reset,
     Exit,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
-enum Execute {
+enum DoTick {
     Cpu,
     Display,
     SoundDelay,
@@ -39,43 +39,42 @@ fn main() {
 
     let sdl_context = sdl2::init().unwrap();
 
+    let audio_driver = AudioDriver::new(&sdl_context);
     let mut display_driver = DisplayDriver::new(&sdl_context);
-    let mut audio_driver = AudioDriver::new(&sdl_context);
     let mut input_driver = InputDriver::new(&sdl_context);
 
-    let mut cpu = Cpu::new();
-    cpu.load_rom(&args.filename);
-
-    let mut keys = [false; 16];
-
     let mut timers: Vec<Timer> = vec![
-        Timer::new(1000, Execute::Cpu),
-        Timer::new(60, Execute::Display),
-        Timer::new(60, Execute::SoundDelay),
+        Timer::new(1000, DoTick::Cpu),
+        Timer::new(60, DoTick::Display),
+        Timer::new(60, DoTick::SoundDelay),
     ];
 
+    let mut cpu = Cpu::new(&args.filename);
+
     'mainloop: loop {
-        if input_driver.get_inputs(&mut keys) == State::Exit {
-            break 'mainloop;
+        match input_driver.get_inputs(&mut cpu.keys) {
+            Some(Event::Toggle) => cpu.toggle_state(),
+            Some(Event::Reset) => cpu = Cpu::new(&args.filename),
+            Some(Event::Exit) => break 'mainloop,
+            None => (),
         }
 
         let execute = check_timers(&mut timers);
 
-        if execute.contains(&Execute::Cpu) {
-            cpu.tick(&keys);
+        if !cpu.is_paused() && execute.contains(&DoTick::Cpu) {
+            cpu.tick();
         }
 
-        if execute.contains(&Execute::Display) {
+        if execute.contains(&DoTick::Display) {
             display_driver.draw(&cpu.pixels)
         }
 
-        if execute.contains(&Execute::SoundDelay) {
+        if !cpu.is_paused() && execute.contains(&DoTick::SoundDelay) {
             cpu.decrement_timers()
         }
 
-        // todo: ACTUAL AUDIO !!!!
-        // if cpu.sound_timer == 0 {
-        //     println!("BEEP")
+        // if cpu.sound_timer > 0 {
+        //     audio_driver.beep()
         // }
     }
 }

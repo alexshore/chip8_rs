@@ -28,6 +28,12 @@ const FONT: [u8; 80] = [
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];
 
+#[derive(PartialEq, Eq)]
+pub enum State {
+    Play,
+    Pause,
+}
+
 #[derive(Debug)]
 struct Instruction {
     full: u16,
@@ -54,35 +60,40 @@ impl Instruction {
 }
 
 pub struct Cpu {
-    pub pixels: Vec<bool>,
-    memory: Vec<u8>,
+    pub pixels: [bool; (SCREEN_HEIGHT * SCREEN_WIDTH) as usize],
+    pub keys: [bool; 16],
+    memory: [u8; 4096],
     stack: Vec<usize>,
-    v: Vec<u8>,
+    v: [u8; 16],
     i: u16,
     pc: usize,
     delay_timer: u8,
     pub sound_timer: u8,
     rng: ThreadRng,
+    state: State,
 }
 
 impl Cpu {
-    pub fn new() -> Cpu {
+    pub fn new(rom: &PathBuf) -> Cpu {
         let mut res = Cpu {
-            pixels: vec![false; (SCREEN_HEIGHT * SCREEN_WIDTH) as usize],
-            memory: vec![0; 4096],
+            pixels: [false; (SCREEN_HEIGHT * SCREEN_WIDTH) as usize],
+            keys: [false; 16],
+            memory: [0; 4096],
             stack: vec![],
-            v: vec![0; 16],
+            v: [0; 16],
             i: 0,
             pc: 0x200,
             delay_timer: 0,
             sound_timer: 0,
             rng: rand::thread_rng(),
+            state: State::Play,
         };
+        res.load_rom(rom);
         res.memory[0x50..0x50 + FONT.len()].copy_from_slice(&FONT[..]);
         res
     }
 
-    pub fn load_rom(&mut self, filename: &PathBuf) {
+    fn load_rom(&mut self, filename: &PathBuf) {
         let mut f = File::open(filename).expect("failed to open file");
         let metadata = metadata(filename).expect("failed to parse metadata");
         let mut rom = vec![0; metadata.len() as usize];
@@ -91,9 +102,20 @@ impl Cpu {
         self.memory[self.pc..(rom.len() + self.pc)].copy_from_slice(&rom[..]);
     }
 
-    pub fn tick(&mut self, keys: &[bool; 16]) {
+    pub fn is_paused(&self) -> bool {
+        self.state == State::Pause
+    }
+
+    pub fn toggle_state(&mut self) {
+        self.state = match self.state {
+            State::Play => State::Pause,
+            State::Pause => State::Play,
+        };
+    }
+
+    pub fn tick(&mut self) {
         let instruction = self.decode();
-        self.execute(instruction, keys)
+        self.execute(instruction)
     }
 
     pub fn decrement_timers(&mut self) {
@@ -105,7 +127,7 @@ impl Cpu {
         Instruction::from(BigEndian::read_u16(&self.memory[self.pc..=self.pc + 1]))
     }
 
-    fn execute(&mut self, ins: Instruction, keys: &[bool; 16]) {
+    fn execute(&mut self, ins: Instruction) {
         self.pc += 2;
 
         match ins.op {
@@ -232,13 +254,13 @@ impl Cpu {
             0xE => match ins.nn {
                 // PC = PC + 2 IF keys[Vx] == True
                 0x9E => {
-                    if keys[self.v[ins.x] as usize] {
+                    if self.keys[self.v[ins.x] as usize] {
                         self.pc += 2
                     }
                 }
                 // PC = PC + 2 IF keys[Vx] == False
                 0xA1 => {
-                    if !keys[self.v[ins.x] as usize] {
+                    if !self.keys[self.v[ins.x] as usize] {
                         self.pc += 2
                     }
                 }
@@ -251,10 +273,10 @@ impl Cpu {
 
                 // PAUSE until any keypressed then store in Vx
                 0x0A => {
-                    if !keys.iter().any(|&key| key) {
+                    if !self.keys.iter().any(|&key| key) {
                         self.pc -= 2
                     } else {
-                        for (i, key) in keys.iter().enumerate() {
+                        for (i, key) in self.keys.iter().enumerate() {
                             if *key {
                                 self.v[ins.x] = i as u8
                             }
@@ -272,7 +294,7 @@ impl Cpu {
                 0x1E => self.i += self.v[ins.x] as u16,
 
                 // I = font[Vx] memory location
-                0x29 => self.i = 0x50 + (self.v[ins.x] * 5) as u16,
+                0x29 => self.i = self.v[ins.x] as u16 * 5 + 0x50,
 
                 // memory[i..i + 2] = Vx BCD
                 0x33 => {

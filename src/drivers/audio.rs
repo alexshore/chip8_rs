@@ -6,4 +6,8 @@ impl AudioDriver {
     pub fn new(sdl_context: &Sdl) -> Self {
         Self {}
     }
+
+    pub fn beep(&self) {
+        println!("BEEP!!!")
+    }
 }
