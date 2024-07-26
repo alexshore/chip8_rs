@@ -28,10 +28,14 @@ enum DoTick {
 }
 
 #[derive(Parser)]
-#[command(version, about)]
+#[command(name = "CHIP8_RS", version = "1.0", about)]
 struct Args {
     /// ROM file
     filename: PathBuf,
+
+    /// CPU frequency (default: 1000Hz)
+    #[arg(short = 'f', long)]
+    freq: Option<u32>,
 }
 
 fn main() {
@@ -39,12 +43,12 @@ fn main() {
 
     let sdl_context = sdl2::init().unwrap();
 
-    let audio_driver = AudioDriver::new(&sdl_context);
+    let audio_driver = AudioDriver::new();
     let mut display_driver = DisplayDriver::new(&sdl_context);
     let mut input_driver = InputDriver::new(&sdl_context);
 
     let mut timers: Vec<Timer> = vec![
-        Timer::new(1000, DoTick::Cpu),
+        Timer::new(args.freq.unwrap_or(1000), DoTick::Cpu),
         Timer::new(60, DoTick::Display),
         Timer::new(60, DoTick::SoundDelay),
     ];
@@ -73,8 +77,8 @@ fn main() {
             cpu.decrement_timers()
         }
 
-        // if cpu.sound_timer > 0 {
-        //     audio_driver.beep()
-        // }
+        if cpu.sound_timer > 0 {
+            audio_driver.beep()
+        }
     }
 }

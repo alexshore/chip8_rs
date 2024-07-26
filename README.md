@@ -1,6 +1,18 @@
 # CHIP-8 Rust Emulator
 
-Yet another CHIP-8 emulator written in Rust. I primarily wrote this to learn about SDL and basic emulator construction.
+Yet another CHIP-8 emulator written in Rust. I primarily wrote this to learn a bit about SDL and basic emulator construction.
+
+## Features
+
+- All CHIP-8 instructions.
+- Configurable CPU frequency via cmdline argument.
+  - `-f FREQ` / `--freq FREQ`
+
+## Usage
+
+- Install listed [dependencies](#dependencies).
+- Build with Cargo: `cargo build --release`.
+- Run the created executable: `target/release/chip8 <ROMFILE>`
 
 ## Dependencies
 
@@ -13,7 +25,8 @@ Yet another CHIP-8 emulator written in Rust. I primarily wrote this to learn abo
 ## Restrictions
 
 - Will only run CHIP-8 type roms, SUPER-CHIP is not supported.
-- CPU speed is not modifiable through configuration.
+- Sound is not implemented.
+- Some ROMs may crash.
 
 ## References
 
@@ -24,8 +37,5 @@ Yet another CHIP-8 emulator written in Rust. I primarily wrote this to learn abo
 
 ## TODO
 
-- Configurable CPU speed.
-  - via argument
-  - via keypress
-- Reset button.
+- Make timers more accurate.
 - Sound.
